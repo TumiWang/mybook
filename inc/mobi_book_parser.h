@@ -82,6 +82,7 @@ private:
 
     bool parser_head_ = false;
     bool parser_body_ = false;
+    bool parser_finish_ = false;
 };
 
 #endif
