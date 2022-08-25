@@ -567,3 +567,29 @@ bool cp1252_to_utf8(const char* buf, int len, std::string& text)
     }
     return result;
 }
+
+bool StringToNumber(const std::string& text, int32_t& v)
+{
+    bool result = true;
+    int r = 0;
+    bool negative = false;
+    std::string temp = text;
+    if (temp.size() > 1) {
+        if (text[0] == '-') {
+            negative = true;
+            temp = temp.substr(1);
+        }
+    }
+    for (const char& c: temp) {
+        if (c >= '0' && c <= '9') {
+            r = r * 10 + (c - '0');
+            continue;
+        }
+        if (c == '.') break;
+        result = false;
+        break;
+    }
+    if (negative) r = r * (-1);
+    if (result) v = r;
+    return result;
+}

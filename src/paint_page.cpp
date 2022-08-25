@@ -15,10 +15,6 @@ paint_page::~paint_page()
 bool paint_page::add(paint_line* line, SkScalar offsetY)
 {
     SkScalar y = 0.0;
-    if (!lines_.empty()) {
-        // y = lines_.back().first.fY + lines_.back().second->get_height();
-        y = lines_.back().second->get_height();
-    }
     y += offsetY;
     if (y + line->get_height() > max_height_) return false;
     lines_.emplace_back(SkPoint::Make(0.0, y), line);
@@ -28,12 +24,12 @@ bool paint_page::add(paint_line* line, SkScalar offsetY)
     if (start_pos_ < 0) {
         start_pos_ = start_pos;
     } else {
-        if (start_pos > start_pos_) start_pos_ = start_pos;
+        if (start_pos < start_pos_) start_pos_ = start_pos;
     }
     if (end_pos_ < 0) {
         end_pos_ = end_pos;
     } else {
-        if (end_pos < end_pos_) end_pos_ = end_pos;
+        if (end_pos > end_pos_) end_pos_ = end_pos;
     }
 
     return true;

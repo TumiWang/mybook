@@ -3,9 +3,6 @@
 
 #include "mobi_attr.h"
 
-// libxml2
-#include "libxml/HTMLparser.h"
-
 #include "expat.h"
 
 #include <stdint.h>
@@ -35,19 +32,9 @@ protected:
     static void XMLCALL OnElementText(void * data, const XML_Char * text, int len);
 
 protected:
-    bool ergodic_node_from_body(xmlNodePtr node);
-
-protected:
     void create_last_page();
 
     void add_paragraph_if_need(int32_t pos);
-    void add_paragraph(xmlNodePtr node);
-    void add_image(xmlNodePtr node);
-    void add_br(xmlNodePtr node);
-    void add_text(xmlNodePtr node);
-    void proc_font_node(xmlNodePtr node);
-    void proc_b_node(xmlNodePtr node);
-    void proc_a_node(xmlNodePtr node);
     void add_paragraph(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos);
     void add_image(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos);
     void add_br(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos);
@@ -57,12 +44,10 @@ protected:
     void proc_a_node(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos);
     void clear_element_stack();
 
-    void check_align_attr(xmlNodePtr node);
     void check_align_attr(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos);
 
     void init_element_attrs(mobi_element* element);
 
-    void init_menu(xmlNodePtr guide);
     void proc_menu(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos);
 
 private:

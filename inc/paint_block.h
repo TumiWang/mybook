@@ -18,6 +18,7 @@
 
 class mobi_element_image;
 class mobi_element_text;
+class mobi_element;
 
 class paint_block
 {

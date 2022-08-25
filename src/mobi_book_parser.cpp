@@ -8,7 +8,6 @@
 #include "mobi_element_text.h"
 #include "mobi_element.h"
 #include "mobi_page.h"
-#include "xml_util.h"
 
 #include "expat.h"
 
@@ -167,32 +166,6 @@ bool mobi_book_parser::init(const char* default_font)
 bool mobi_book_parser::parse(const std::string& content)
 {
     bool result = false;
-    // xmlDocPtr doc = NULL;
-    // do {
-    //     doc = htmlParseDoc((const xmlChar *)content.c_str(), "UTF8");
-    //     if (!doc) break;
-    //     xmlNodePtr root = xmlDocGetRootElement(doc);
-    //     if (!root) break;
-    //     xmlNodePtr body = FinderNodeWith(root, BAD_CAST"body");
-    //     if (!body) break;
-    //     if (!ergodic_node_from_body(body)) break;
-    //     xmlNodePtr head = FinderNodeWith(root, BAD_CAST"head");
-    //     if (head) {
-    //         xmlNodePtr guide = head->children;
-    //         while(guide) {
-    //             if (!xmlStrcasecmp(guide->name, BAD_CAST"guide")) {
-    //                 init_menu(guide);
-    //                 break;
-    //             }
-    //             guide = guide->next;
-    //         }
-    //     }
-    //     result = true;
-    // } while(false);
-    // if (doc) {
-    //     xmlFreeDoc(doc);
-    //     doc = NULL;
-    // }
     do {
         if (xml_parser_) break;
         xml_parser_ = XML_ParserCreate(NULL);
@@ -250,7 +223,9 @@ void XMLCALL mobi_book_parser::OnElementStart(void * data, const XML_Char * tag,
 
     if (parser->in_head_) {
         if (!strcasecmp(tag, "reference")) {
-            parser->proc_menu(tag, attr);
+            int32_t start_pos = XML_GetCurrentByteIndex(parser->xml_parser_);
+            int32_t end_pos = start_pos + XML_CurrentNodeCount(parser->xml_parser_);
+            parser->proc_menu(tag, attr, start_pos, end_pos);
         }
     } else if (parser->in_body_) {
         int32_t start_pos = XML_GetCurrentByteIndex(parser->xml_parser_);
@@ -325,56 +300,13 @@ void XMLCALL mobi_book_parser::OnElementText(void * data, const XML_Char * text,
     if (!parser) return;
     if (!parser->xml_parser_) return;
 
+    if (!parser->in_body_ && !parser->in_head_) return;
+
     int32_t start_pos = XML_GetCurrentByteIndex(parser->xml_parser_);
     if (start_pos < 0) return;
     if (len < 0) return;
 
     parser->add_text(text, len, start_pos, start_pos + len);
-}
-
-bool mobi_book_parser::ergodic_node_from_body(xmlNodePtr node)
-{
-    // proc
-    if (xmlStrcasecmp(node->name, BAD_CAST"p") == 0 ||
-        xmlStrcasecmp(node->name, BAD_CAST"blockquote") == 0) {
-        clear_element_stack();
-        add_paragraph(node);
-    } else if (xmlStrcasecmp(node->name, BAD_CAST"text") == 0) {
-        add_paragraph_if_need(node->pos);
-        add_text(node);
-    } else if (xmlStrcasecmp(node->name, BAD_CAST"pagebreak") == 0) {
-        clear_element_stack();
-        create_last_page();
-    } else if (xmlStrcasecmp(node->name, BAD_CAST"img") == 0) {
-        add_paragraph_if_need(node->pos);
-        add_image(node);
-    } else if (xmlStrcasecmp(node->name, BAD_CAST"br") == 0) {
-        add_paragraph_if_need(node->pos);
-        clear_element_stack();
-        add_br(node);
-    } else if (xmlStrcasecmp(node->name, BAD_CAST"font") == 0) {
-        proc_font_node(node);
-    } else if (xmlStrcasecmp(node->name, BAD_CAST"b") == 0) {
-        proc_b_node(node);
-    } else if (xmlStrcasecmp(node->name, BAD_CAST"a") == 0) {
-        proc_a_node(node);
-    }
-
-    xmlNodePtr cur = node->children;
-    while (cur)
-    {
-        if (!ergodic_node_from_body(cur))
-        {
-            return false;
-        }
-        cur = cur->next;
-    }
-
-    auto itor = std::remove_if(attr_stack_.begin(), attr_stack_.end(), [&node](const mobi_attr& item)->bool { return item.get_pos() >= node->pos; });
-    if (itor != attr_stack_.end()) {
-         attr_stack_.erase(itor, attr_stack_.end());
-    }
-    return true;
 }
 
 void mobi_book_parser::create_last_page()
@@ -397,122 +329,13 @@ void mobi_book_parser::add_paragraph_if_need(int32_t pos)
     // }
 }
 
-void mobi_book_parser::add_paragraph(xmlNodePtr node)
-{
-    mobi_element_paragraph* p = new mobi_element_paragraph();
-    p->start_pos_ = node->pos;
-    last_page_->children_.push_back(p);
-    check_align_attr(node);
-    init_element_attrs(p);
-}
-
-void mobi_book_parser::add_image(xmlNodePtr node)
-{
-    mobi_element_image* image = NULL;
-    xmlChar* r = xmlGetProp(node, BAD_CAST"recindex");
-    if (r) {
-        int32_t value = 0;
-        if (StringToNumber((char*)r, value)) {
-            for (auto itor = book_->images_.begin(); itor != book_->images_.end(); ++itor) {
-                if (itor->first == value) {
-                    image = new mobi_element_image(itor->second);
-                    if (!(image->image_)) {
-                        delete image;
-                        image = NULL;
-                    }
-                    image->start_pos_ = node->pos;
-                    break;
-                }
-            }
-        }
-        xmlFree(r);
-    }
-    if (!image) return;
-    last_page_->children_.push_back(image);
-
-    check_align_attr(node);
-
-    r = xmlGetProp(node, BAD_CAST"width");
-    if (r) {
-        int32_t value = 0;
-        if (StringToNumber((char*)r, value)) {
-            if (value > 0 && value <= 10000) {
-                image->width_ = value;
-            }
-        }
-        xmlFree(r);
-    }
-    r = xmlGetProp(node, BAD_CAST"height");
-    if (r) {
-        int32_t value = 0;
-        if (StringToNumber((char*)r, value)) {
-            if (value > 0 && value <= 10000) {
-                image->height_ = value;
-            }
-        }
-        xmlFree(r);
-    }
-    init_element_attrs(image);
-}
-
-void mobi_book_parser::add_br(xmlNodePtr node)
-{
-    mobi_element_br* br = new mobi_element_br();
-    br->start_pos_ = node->pos;
-    last_page_->children_.push_back(br);
-    init_element_attrs(br);
-}
-
-void mobi_book_parser::add_text(xmlNodePtr node)
-{
-    xmlChar* text = xmlNodeGetContent(node);
-    if (text) {
-        mobi_element_text* text_node = new mobi_element_text((const char*)text);
-        text_node->start_pos_ = node->pos;
-        last_page_->children_.push_back(text_node);
-        check_align_attr(node);
-        init_element_attrs(text_node);
-        xmlFree(text);
-    }
-}
-
-void mobi_book_parser::proc_font_node(xmlNodePtr node)
-{
-    xmlChar* r = xmlGetProp(node, BAD_CAST"size");
-    if (r) {
-        mobi_attr attr(node->pos, "font_size", (char*)r);
-        if (attr.get_type() != mobi_attr::mobi_attr_type::invilad) {
-            attr_stack_.push_back(attr);
-        }
-        xmlFree(r);
-    }
-    check_align_attr(node);
-}
-
-void mobi_book_parser::proc_b_node(xmlNodePtr node)
-{
-    attr_stack_.emplace_back(node->pos, mobi_attr::mobi_attr_type::bold, 1);
-}
-
-void mobi_book_parser::proc_a_node(xmlNodePtr node)
-{
-    xmlChar* r = xmlGetProp(node, BAD_CAST"filepos");
-    if (r) {
-        mobi_attr attr(node->pos, "filepos", (char*)r);
-        if (attr.get_type() != mobi_attr::mobi_attr_type::invilad) {
-            attr_stack_.push_back(attr);
-        }
-        xmlFree(r);
-    }
-}
-
 void mobi_book_parser::add_paragraph(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos)
 {
     mobi_element_paragraph* p = new mobi_element_paragraph();
     p->start_pos_ = start_pos;
     p->end_pos_ = end_pos;
     last_page_->children_.push_back(p);
-    check_align_attr(tag, attr);
+    check_align_attr(tag, attr, start_pos, end_pos);
     init_element_attrs(p);
 }
 
@@ -543,7 +366,7 @@ void mobi_book_parser::add_image(const XML_Char * tag, const XML_Char **attr, in
     if (!image) return;
     last_page_->children_.push_back(image);
 
-    check_align_attr(tag, attr);
+    check_align_attr(tag, attr, start_pos, end_pos);
 
     for (index = 0; attr[index]; index += 2) {
         if (!strcmp(attr[index], "width")) {
@@ -596,7 +419,7 @@ void mobi_book_parser::proc_font_node(const XML_Char * tag, const XML_Char **att
             break;
         }
     }
-    check_align_attr(tag, attr);
+    check_align_attr(tag, attr, start_pos, end_pos);
 }
 
 void mobi_book_parser::proc_b_node(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos)
@@ -620,18 +443,6 @@ void mobi_book_parser::proc_a_node(const XML_Char * tag, const XML_Char **attr, 
 void mobi_book_parser::clear_element_stack()
 {
     // element_stack_.clear();
-}
-
-void mobi_book_parser::check_align_attr(xmlNodePtr node)
-{
-    xmlChar* r = xmlGetProp(node, BAD_CAST"align");
-    if (r) {
-        mobi_attr attr(node->pos, "align", (char*)r);
-        if (attr.get_type() != mobi_attr::mobi_attr_type::invilad) {
-            attr_stack_.push_back(attr);
-        }
-        xmlFree(r);
-    }
 }
 
 void mobi_book_parser::check_align_attr(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos)
@@ -784,94 +595,6 @@ void mobi_book_parser::init_element_attrs(mobi_element* element)
     element->v_align_ = v_align;
 }
 
-void mobi_book_parser::init_menu(xmlNodePtr guide)
-{
-    if (!book_) return;
-    if (book_->menu_) return;
-    mobi_menu* menu = new mobi_menu();
-    if (!menu) return;
-
-    for (xmlNodePtr reference = guide->children; reference != NULL; reference = reference->next) {
-        if (xmlStrcasecmp(reference->name, BAD_CAST"reference")) {
-            continue;
-        }
-        std::string temp;
-        xmlChar* r = xmlGetProp(reference, BAD_CAST"type");
-        if (r) {
-            temp = (char*)r;
-            xmlFree(r);
-        } else {
-            continue;
-        }
-        if (temp != "text") continue;
-        mobi_element_text* text_node = NULL;
-        r = xmlGetProp(reference, BAD_CAST"title");
-        if (r) {
-            text_node = new mobi_element_text((const char*)r);
-            text_node->start_pos_ = reference->pos;
-            menu->children_.emplace_back(true, text_node);
-            xmlFree(r);
-        } else {
-            continue;
-        }
-        int32_t* addr = NULL;
-        r = xmlGetProp(reference, BAD_CAST"filepos");
-        if (r) {
-            addr = new int32_t;
-            if (!StringToNumber((char*)r, *addr)) {
-                *addr = -1;
-            }
-            xmlFree(r);
-        }
-        init_element_attrs(text_node);
-        if (addr) {
-            if (text_node->address_) delete text_node->address_;
-            text_node->address_ = addr;
-        }
-    }
-
-    for (xmlNodePtr reference = guide->children; reference != NULL; reference = reference->next) {
-        if (xmlStrcasecmp(reference->name, BAD_CAST"reference")) {
-            continue;
-        }
-        std::string temp;
-        xmlChar* r = xmlGetProp(reference, BAD_CAST"type");
-        if (r) {
-            temp = (char*)r;
-            xmlFree(r);
-        } else {
-            continue;
-        }
-        if (temp != "toc") continue;
-        // r = xmlGetProp(reference, BAD_CAST"title");
-        // if (r) {
-        //     mobi_element_text* text_node = new mobi_element_text((const char*)r);
-        //     text_node->start_pos_ = reference->pos;
-        //     init_element_attrs(text_node);
-        //     menu->children_.emplace_back(true, text_node);
-        //     xmlFree(r);
-        // }
-        r = xmlGetProp(reference, BAD_CAST"filepos");
-        if (r) {
-            int32_t addr = -1;
-            if (StringToNumber((char*)r, addr)) {
-                for (const auto& item: book_->pages_) {
-                    auto size = item->children_.size();
-                    if (size <= 0) continue;
-                    if (item->children_[0]->get_start_pos() > addr) continue;
-                    if (item->children_[size - 1]->get_start_pos() < addr) continue;
-                    for(auto& child: item->children_) {
-                        if (child->get_start_pos() < addr) continue;
-                        menu->children_.emplace_back(false, child);
-                    }
-                    break;
-                }
-            }
-            xmlFree(r);
-        }
-    }
-}
-
 void mobi_book_parser::proc_menu(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos)
 {
     if (!book_) return;
@@ -909,7 +632,7 @@ void mobi_book_parser::proc_menu(const XML_Char * tag, const XML_Char **attr, in
         } while(false);
     } else if (strType == "toc") {
         for (const auto& page: book_->pages_) {
-            if (page->empty()) continue;
+            if (page->children_.empty()) continue;
             if (page->get_start_pos() >= addr && page->get_end_pos() < addr) {
                 for(auto& child: page->children_) {
                     if (addr < child->get_start_pos()) continue;

@@ -57,8 +57,8 @@ int32_t paint_block::get_address() const
 paint_none_block* paint_none_block::create(const mobi_element* element)
 {
     paint_none_block* block = new paint_none_block();
-    block->v_align_ = mobi_attr::h_align_type::left;
-    block->h_align_ = mobi_attr::v_align_type::top;
+    block->h_align_ = mobi_attr::h_align_type::left;
+    block->v_align_ = mobi_attr::v_align_type::top;
     block->start_pos_ = element->get_start_pos();
     block->end_pos_ = element->get_end_pos();
     return block;

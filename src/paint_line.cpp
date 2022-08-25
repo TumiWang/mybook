@@ -68,12 +68,12 @@ bool paint_line::add(paint_block* block)
     if (start_pos_ < 0) {
         start_pos_ = start_pos;
     } else {
-        if (start_pos > start_pos_) start_pos_ = start_pos;
+        if (start_pos < start_pos_) start_pos_ = start_pos;
     }
     if (end_pos_ < 0) {
         end_pos_ = end_pos;
     } else {
-        if (end_pos < end_pos_) end_pos_ = end_pos;
+        if (end_pos > end_pos_) end_pos_ = end_pos;
     }
     return true;
 }

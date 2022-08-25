@@ -133,7 +133,11 @@ void paint_engine::init(const mobi_page* book_page)
             }
             break;
         case mobi_element::mobi_element_type::br:
-            line->add(element);
+            {
+                paint_none_block* block = paint_none_block::create(element);
+                blocks_.push_back(block);
+                line->add(block);
+            }
             if (!line->empty()) {
                 if (!page->add(line, y)) {
                     pages_.push_back(page);
@@ -152,7 +156,11 @@ void paint_engine::init(const mobi_page* book_page)
             }
             break;
         case mobi_element::mobi_element_type::paragraph:
-            line->add(element);
+            {
+                paint_none_block* block = paint_none_block::create(element);
+                blocks_.push_back(block);
+                line->add(block);
+            }
             if (!line->empty()) {
                 if (!page->add(line, y)) {
                     pages_.push_back(page);

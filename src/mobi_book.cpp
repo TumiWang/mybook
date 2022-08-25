@@ -122,7 +122,7 @@ void mobi_book::ProcClick(const SkPoint& point)
     pos = page->get_address(point);
     if (pos < 0) return;
 
-    for (int index = paint_engine_.size() - 1; index >= 0; --index) {
+    for (int index = 0; index < paint_engine_.size(); ++index) {
         paint_engine* engine = paint_engine_[index];
         if (!engine) break;
         int32_t temp = engine->get_page_index(pos);
