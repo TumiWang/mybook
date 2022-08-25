@@ -15,6 +15,7 @@ public:
 
 public:
     int32_t get_start_pos() const;
+    int32_t get_end_pos() const;
     bool traversal(const std::function<bool(mobi_element*, int32_t index, int32_t count)>& proc) const;
 
 protected:

@@ -253,32 +253,37 @@ void XMLCALL mobi_book_parser::OnElementStart(void * data, const XML_Char * tag,
             parser->proc_menu(tag, attr);
         }
     } else if (parser->in_body_) {
+        int32_t start_pos = XML_GetCurrentByteIndex(parser->xml_parser_);
+        int32_t end_pos = start_pos + XML_CurrentNodeCount(parser->xml_parser_);
         int bIsSingle = XML_CurrentNodeIsSigle(parser->xml_parser_);
 
         if (!bIsSingle) {
-            parser->parser_pos_stack_.push_back(XML_GetCurrentByteIndex(parser->xml_parser_));
+            parser->parser_pos_stack_.push_back(start_pos);
         }
+
+        if (start_pos < 0) return;
+        if (end_pos < start_pos) return;
 
         if (strcasecmp(tag, "p") == 0 ||
             strcasecmp(tag, "blockquote") == 0) {
             parser->clear_element_stack();
-            parser->add_paragraph(tag, attr);
+            parser->add_paragraph(tag, attr, start_pos, end_pos);
         } else if (strcasecmp(tag, "mbp:pagebreak") == 0) {
             parser->clear_element_stack();
             parser->create_last_page();
         } else if (strcasecmp(tag, "img") == 0) {
-            parser->add_paragraph_if_need(XML_GetCurrentByteIndex(parser->xml_parser_));
-            parser->add_image(tag, attr);
+            parser->add_paragraph_if_need(start_pos);
+            parser->add_image(tag, attr, start_pos, end_pos);
         } else if (strcasecmp(tag, "br") == 0) {
-            parser->add_paragraph_if_need(XML_GetCurrentByteIndex(parser->xml_parser_));
+            parser->add_paragraph_if_need(start_pos);
             parser->clear_element_stack();
-            parser->add_br(tag, attr);
+            parser->add_br(tag, attr, start_pos, end_pos);
         } else if (strcasecmp(tag, "font") == 0) {
-            parser->proc_font_node(tag, attr);
+            parser->proc_font_node(tag, attr, start_pos, end_pos);
         } else if (strcasecmp(tag, "b") == 0) {
-            parser->proc_b_node(tag, attr);
+            parser->proc_b_node(tag, attr, start_pos, end_pos);
         } else if (strcasecmp(tag, "a") == 0) {
-            parser->proc_a_node(tag, attr);
+            parser->proc_a_node(tag, attr, start_pos, end_pos);
         }
     }
 }
@@ -320,7 +325,11 @@ void XMLCALL mobi_book_parser::OnElementText(void * data, const XML_Char * text,
     if (!parser) return;
     if (!parser->xml_parser_) return;
 
-    parser->add_text(text, len);
+    int32_t start_pos = XML_GetCurrentByteIndex(parser->xml_parser_);
+    if (start_pos < 0) return;
+    if (len < 0) return;
+
+    parser->add_text(text, len, start_pos, start_pos + len);
 }
 
 bool mobi_book_parser::ergodic_node_from_body(xmlNodePtr node)
@@ -497,16 +506,17 @@ void mobi_book_parser::proc_a_node(xmlNodePtr node)
     }
 }
 
-void mobi_book_parser::add_paragraph(const XML_Char * tag, const XML_Char **attr)
+void mobi_book_parser::add_paragraph(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos)
 {
     mobi_element_paragraph* p = new mobi_element_paragraph();
-    p->start_pos_ = XML_GetCurrentByteIndex(xml_parser_);
+    p->start_pos_ = start_pos;
+    p->end_pos_ = end_pos;
     last_page_->children_.push_back(p);
     check_align_attr(tag, attr);
     init_element_attrs(p);
 }
 
-void mobi_book_parser::add_image(const XML_Char * tag, const XML_Char **attr)
+void mobi_book_parser::add_image(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos)
 {
     mobi_element_image* image = NULL;
     int index = 0;
@@ -521,7 +531,8 @@ void mobi_book_parser::add_image(const XML_Char * tag, const XML_Char **attr)
                             delete image;
                             image = NULL;
                         }
-                        image->start_pos_ = XML_GetCurrentByteIndex(xml_parser_);
+                        image->start_pos_ = start_pos;
+                        image->end_pos_ = end_pos;
                         break;
                     }
                 }
@@ -555,28 +566,30 @@ void mobi_book_parser::add_image(const XML_Char * tag, const XML_Char **attr)
     init_element_attrs(image);
 }
 
-void mobi_book_parser::add_br(const XML_Char * tag, const XML_Char **attr)
+void mobi_book_parser::add_br(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos)
 {
     mobi_element_br* br = new mobi_element_br();
-    br->start_pos_ = XML_GetCurrentByteIndex(xml_parser_);
+    br->start_pos_ = start_pos;
+    br->end_pos_ = end_pos;
     last_page_->children_.push_back(br);
     init_element_attrs(br);
 }
 
-void mobi_book_parser::add_text(const XML_Char * text, int len)
+void mobi_book_parser::add_text(const XML_Char * text, int len, int32_t start_pos, int32_t end_pos)
 {
     std::string content(text, len);
     mobi_element_text* text_node = new mobi_element_text((const char*)content.c_str());
-    text_node->start_pos_ = XML_GetCurrentByteIndex(xml_parser_);
+    text_node->start_pos_ = start_pos;
+    text_node->end_pos_ = end_pos;
     last_page_->children_.push_back(text_node);
     init_element_attrs(text_node);
 }
 
-void mobi_book_parser::proc_font_node(const XML_Char * tag, const XML_Char **attr)
+void mobi_book_parser::proc_font_node(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos)
 {
     for (int index = 0; attr[index]; index += 2) {
         if (!strcmp(attr[index], "size")) {
-            mobi_attr att(XML_GetCurrentByteIndex(xml_parser_), "font_size", (const char*)(attr[index + 1]));
+            mobi_attr att(start_pos, "font_size", (const char*)(attr[index + 1]));
             if (att.get_type() != mobi_attr::mobi_attr_type::invilad) {
                 attr_stack_.push_back(att);
             }
@@ -586,16 +599,16 @@ void mobi_book_parser::proc_font_node(const XML_Char * tag, const XML_Char **att
     check_align_attr(tag, attr);
 }
 
-void mobi_book_parser::proc_b_node(const XML_Char * tag, const XML_Char **attr)
+void mobi_book_parser::proc_b_node(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos)
 {
-    attr_stack_.emplace_back(XML_GetCurrentByteIndex(xml_parser_), mobi_attr::mobi_attr_type::bold, 1);
+    attr_stack_.emplace_back(start_pos, mobi_attr::mobi_attr_type::bold, 1);
 }
 
-void mobi_book_parser::proc_a_node(const XML_Char * tag, const XML_Char **attr)
+void mobi_book_parser::proc_a_node(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos)
 {
     for (int index = 0; attr[index]; index += 2) {
         if (!strcmp(attr[index], "filepos")) {
-            mobi_attr att(XML_GetCurrentByteIndex(xml_parser_), "filepos", (const char*)attr[index + 1]);
+            mobi_attr att(start_pos, "filepos", (const char*)attr[index + 1]);
             if (att.get_type() != mobi_attr::mobi_attr_type::invilad) {
                 attr_stack_.push_back(att);
             }
@@ -621,11 +634,11 @@ void mobi_book_parser::check_align_attr(xmlNodePtr node)
     }
 }
 
-void mobi_book_parser::check_align_attr(const XML_Char * tag, const XML_Char **attr)
+void mobi_book_parser::check_align_attr(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos)
 {
     for (int index = 0; attr[index]; index += 2) {
         if (!strcmp(attr[index], "align")) {
-            mobi_attr att(XML_GetCurrentByteIndex(xml_parser_), "align", (const char*)attr[index + 1]);
+            mobi_attr att(start_pos, "align", (const char*)attr[index + 1]);
             if (att.get_type() != mobi_attr::mobi_attr_type::invilad) {
                 attr_stack_.push_back(att);
             }
@@ -859,7 +872,7 @@ void mobi_book_parser::init_menu(xmlNodePtr guide)
     }
 }
 
-void mobi_book_parser::proc_menu(const XML_Char * tag, const XML_Char **attr)
+void mobi_book_parser::proc_menu(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos)
 {
     if (!book_) return;
 
@@ -887,23 +900,25 @@ void mobi_book_parser::proc_menu(const XML_Char * tag, const XML_Char **attr)
             if (strTitle.empty()) break;
             mobi_element_text* text_node = new mobi_element_text((const char*)strTitle.c_str());
             if (!text_node) break;
-            text_node->start_pos_ = XML_GetCurrentByteIndex(xml_parser_);
+            text_node->start_pos_ = start_pos;
+            text_node->end_pos_ = end_pos;
             book_->menu_->children_.emplace_back(true, text_node);
             init_element_attrs(text_node);
             text_node->address_ = new int32_t;
             *(text_node->address_) = addr;
         } while(false);
-    } else if (strType == "toc") { 
-        for (const auto& item: book_->pages_) {
-            auto size = item->children_.size();
-            if (size <= 0) continue;
-            if (item->children_[0]->get_start_pos() > addr) continue;
-            if (item->children_[size - 1]->get_start_pos() < addr) continue;
-            for(auto& child: item->children_) {
-                if (child->get_start_pos() < addr) continue;
-                book_->menu_->children_.emplace_back(false, child);
+    } else if (strType == "toc") {
+        for (const auto& page: book_->pages_) {
+            if (page->empty()) continue;
+            if (page->get_start_pos() >= addr && page->get_end_pos() < addr) {
+                for(auto& child: page->children_) {
+                    if (addr < child->get_start_pos()) continue;
+                    if (child->get_type() == mobi_element::br) continue;
+                    if (child->get_type() == mobi_element::paragraph) continue;
+                    book_->menu_->children_.emplace_back(false, child);
+                }
+                break;
             }
-            break;
         }
     }
 }

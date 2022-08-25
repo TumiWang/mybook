@@ -35,13 +35,32 @@ public:
     mobi_attr::h_align_type get_h_align() const;
     mobi_attr::v_align_type get_v_align() const;
     int32_t get_start_pos() const;
+    int32_t get_end_pos() const;
     int32_t get_address() const;
 
 protected:
     mobi_attr::h_align_type h_align_ = mobi_attr::h_align_type::left;
     mobi_attr::v_align_type v_align_ = mobi_attr::v_align_type::baseline;
+
     int32_t start_pos_ = 0;
+    int32_t end_pos_ = 0;
+
     int32_t address_ = -1;
+};
+
+class paint_none_block: public paint_block
+{
+public:
+    paint_none_block() = default;
+    virtual ~paint_none_block() = default;
+
+public:
+    static paint_none_block* create(const mobi_element* element);
+
+public:
+    bool is_vilad() const override;
+    SkRect get_rect() const override;
+    void paint(const SkPoint& point, SkCanvas* canvas) const override;
 };
 
 class paint_blob_block: public paint_block

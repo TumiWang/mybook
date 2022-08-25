@@ -48,22 +48,22 @@ protected:
     void proc_font_node(xmlNodePtr node);
     void proc_b_node(xmlNodePtr node);
     void proc_a_node(xmlNodePtr node);
-    void add_paragraph(const XML_Char * tag, const XML_Char **attr);
-    void add_image(const XML_Char * tag, const XML_Char **attr);
-    void add_br(const XML_Char * tag, const XML_Char **attr);
-    void add_text(const XML_Char * text, int len);
-    void proc_font_node(const XML_Char * tag, const XML_Char **attr);
-    void proc_b_node(const XML_Char * tag, const XML_Char **attr);
-    void proc_a_node(const XML_Char * tag, const XML_Char **attr);
+    void add_paragraph(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos);
+    void add_image(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos);
+    void add_br(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos);
+    void add_text(const XML_Char * text, int len, int32_t start_pos, int32_t end_pos);
+    void proc_font_node(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos);
+    void proc_b_node(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos);
+    void proc_a_node(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos);
     void clear_element_stack();
 
     void check_align_attr(xmlNodePtr node);
-    void check_align_attr(const XML_Char * tag, const XML_Char **attr);
+    void check_align_attr(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos);
 
     void init_element_attrs(mobi_element* element);
 
     void init_menu(xmlNodePtr guide);
-    void proc_menu(const XML_Char * tag, const XML_Char **attr);
+    void proc_menu(const XML_Char * tag, const XML_Char **attr, int32_t start_pos, int32_t end_pos);
 
 private:
     mobi_book* book_;

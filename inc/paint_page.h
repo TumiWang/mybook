@@ -16,7 +16,7 @@ public:
     void paint(const SkPoint& point, SkCanvas* canvas);
     bool empty() const;
     int32_t get_start_pos() const;
-    void update_start_pos(int32_t pos);
+    int32_t get_end_pos() const;
     int32_t get_address(const SkPoint& point) const;
 
 protected:
@@ -24,6 +24,7 @@ protected:
     SkScalar max_height_;
 
     int32_t start_pos_ = -1;
+    int32_t end_pos_ = -1;
 
     std::vector<std::pair<SkPoint, paint_line*>> lines_;
 };

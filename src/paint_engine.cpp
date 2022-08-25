@@ -37,8 +37,8 @@ int32_t paint_engine::get_page_index(int32_t pos) const
     // 因为没有终止位, 使用这个方法如果 pos的位置在pages_中所有实例的后面，这个结果不符合预期
     // 调用者确保不发生这个情况
     int32_t result = -1;
-    for (int32_t index = pages_.size() - 1; index >= 0 ; --index) {
-        if (pages_[index]->get_start_pos() <= pos) {
+    for (int32_t index = 0; index < pages_.size() ; ++index) {
+        if (pos >= pages_[index]->get_start_pos() && pos < pages_[index]->get_end_pos()) {
             result = index;
             break;
         }
@@ -69,9 +69,6 @@ void paint_engine::init(const mobi_page* book_page)
 
     auto proc = [&](mobi_element* element, int32_t index, int32_t count) -> bool
     {
-        if (line) {
-            line->update_start_pos(element->get_start_pos());
-        }
         switch(element->get_type())
         {
         case mobi_element::mobi_element_type::text:
@@ -136,6 +133,7 @@ void paint_engine::init(const mobi_page* book_page)
             }
             break;
         case mobi_element::mobi_element_type::br:
+            line->add(element);
             if (!line->empty()) {
                 if (!page->add(line, y)) {
                     pages_.push_back(page);
@@ -154,6 +152,7 @@ void paint_engine::init(const mobi_page* book_page)
             }
             break;
         case mobi_element::mobi_element_type::paragraph:
+            line->add(element);
             if (!line->empty()) {
                 if (!page->add(line, y)) {
                     pages_.push_back(page);

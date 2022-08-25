@@ -1,7 +1,8 @@
 #include "mobi_element.h"
 
 mobi_element::mobi_element()
-    : start_pos_(-1)
+    : start_pos_(-1),
+      end_pos_(-1)
 {
 
 }
@@ -37,6 +38,11 @@ mobi_element::~mobi_element()
 int32_t mobi_element::get_start_pos() const
 {
     return start_pos_;
+}
+
+int32_t mobi_element::get_end_pos() const
+{
+    return end_pos_;
 }
 
 const std::string& mobi_element::get_font_name() const

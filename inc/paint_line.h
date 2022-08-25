@@ -18,7 +18,7 @@ public:
     void paint(const SkPoint& point, SkCanvas* canvas);
     bool empty() const;
     int32_t get_start_pos() const;
-    void update_start_pos(int32_t pos);
+    int32_t get_end_pos() const;
     int32_t get_address(const SkPoint& point) const;
 
 protected:

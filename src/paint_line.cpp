@@ -63,7 +63,18 @@ bool paint_line::add(paint_block* block)
         }
         break;
     }
-    update_start_pos(block->get_start_pos());
+    int32_t start_pos = block->get_start_pos();
+    int32_t end_pos = block->get_end_pos();
+    if (start_pos_ < 0) {
+        start_pos_ = start_pos;
+    } else {
+        if (start_pos > start_pos_) start_pos_ = start_pos;
+    }
+    if (end_pos_ < 0) {
+        end_pos_ = end_pos;
+    } else {
+        if (end_pos < end_pos_) end_pos_ = end_pos;
+    }
     return true;
 }
 
@@ -78,7 +89,14 @@ void paint_line::paint(const SkPoint& point, SkCanvas* canvas)
 
 bool paint_line::empty() const
 {
-    return children_.empty();
+    bool result = true;
+    for (const auto& item: children_) {
+        if (!item.second->get_rect().isEmpty()) {
+            result = false;
+            break;
+        }
+    }
+    return result;
 }
 
 int32_t paint_line::get_start_pos() const
@@ -88,11 +106,10 @@ int32_t paint_line::get_start_pos() const
     return children_.front().second->get_start_pos();
 }
 
-void paint_line::update_start_pos(int32_t pos)
+int32_t paint_line::get_end_pos() const
 {
-    if (start_pos_ < 0) {
-        start_pos_ = pos;
-    }
+    if (children_.empty()) return -1;
+    return children_.back().second->get_end_pos();
 }
 
 int32_t paint_line::get_address(const SkPoint& point) const

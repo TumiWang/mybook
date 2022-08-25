@@ -29,6 +29,7 @@ public:
     virtual mobi_element_type get_type() const = 0;
 
     int32_t get_start_pos() const;
+    int32_t get_end_pos() const;
 
     const std::string& get_font_name() const;
     bool get_address(int32_t* addr) const;
@@ -41,6 +42,7 @@ public:
 
 protected:
     int32_t start_pos_;
+    int32_t end_pos_;
 
     std::string font_name_;
     int32_t* address_ = NULL;

@@ -43,9 +43,39 @@ int32_t paint_block::get_start_pos() const
     return start_pos_;
 }
 
+int32_t paint_block::get_end_pos() const
+{
+    return end_pos_;
+}
+
 int32_t paint_block::get_address() const
 {
     return address_;
+}
+
+// static
+paint_none_block* paint_none_block::create(const mobi_element* element)
+{
+    paint_none_block* block = new paint_none_block();
+    block->v_align_ = mobi_attr::h_align_type::left;
+    block->h_align_ = mobi_attr::v_align_type::top;
+    block->start_pos_ = element->get_start_pos();
+    block->end_pos_ = element->get_end_pos();
+    return block;
+}
+
+bool paint_none_block::is_vilad() const
+{
+    return true;
+}
+
+SkRect paint_none_block::get_rect() const
+{
+    return SkRect::MakeEmpty();
+}
+
+void paint_none_block::paint(const SkPoint& point, SkCanvas* canvas) const
+{
 }
 
 // static
@@ -81,10 +111,11 @@ paint_blob_block* paint_blob_block::create(const mobi_element_text* text, int32_
 
     int size = 0;
     bool is_newline = false;
+    int current_size = 0;
     while (true) {
         ++size;
         if (index + size > content.size()) {
-            if (end_pos) *end_pos = -1;
+            current_size = -1;
             break;
         }
         std::string substr = content.substr(index, size);
@@ -94,9 +125,15 @@ paint_blob_block* paint_blob_block::create(const mobi_element_text* text, int32_
             is_newline = true;
             break;
         }
-        if (end_pos) *end_pos = index + size;
+        current_size = size;
         block->blob_ = blob;
     }
+    if (end_pos) {
+        if (current_size < 0) *end_pos = -1;
+        else *end_pos = index + current_size;
+    }
+    if (current_size < 0) block->end_pos_ = text->get_end_pos();
+    else block->end_pos_ = block->start_pos_ + current_size;
 
     if (newline) *newline = is_newline;
     if (!block->is_vilad()) {
@@ -137,6 +174,7 @@ paint_image_block* paint_image_block::create(const mobi_element_image* image, in
     block->h_align_ = image->get_h_align();
     block->image_ = image->get_image();
     block->start_pos_ = image->get_start_pos();
+    block->end_pos_ = image->get_end_pos();
     int32_t address = -1;
     if (image->get_address(&address)) block->address_ = address;
 
