@@ -15,14 +15,14 @@ class mobi_page;
 class mobi_book_parser
 {
 public:
-    static mobi_book* parser(const char* buf, int32_t len, const char* default_font);
+    static mobi_book* parser(const char* buf, int32_t len);
 
 protected:
     mobi_book_parser();
     ~mobi_book_parser();
 
 protected:
-    bool init(const char* default_font);
+    bool init();
     bool parse(const std::string& content);
     mobi_book* release_book();
 
@@ -58,7 +58,7 @@ private:
 
     std::vector<mobi_element*> element_stack_;
 
-    XML_Parser xml_parser_;
+    mobi::XML_Parser xml_parser_;
 
     std::vector<int32_t> parser_pos_stack_;
 

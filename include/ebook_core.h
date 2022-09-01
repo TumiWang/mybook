@@ -31,7 +31,7 @@ public:
     virtual void paint(const SkPoint& point, SkCanvas* canvas) = 0;
 };
 
-book_core* CreateBookCore(const char* buf, int32_t len, const char* default_font);
+book_core* CreateBookCore(const char* buf, int32_t len);
 void CloseBookCore(book_core* book);
 
 #endif

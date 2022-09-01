@@ -82,14 +82,14 @@ static std::string GetContentFromMobi(mobipocket_t& pocket)
 }
 
 // static
-mobi_book* mobi_book_parser::parser(const char* buf, int32_t len, const char* default_font)
+mobi_book* mobi_book_parser::parser(const char* buf, int32_t len)
 {
     mobi_book* book = NULL;
     mobi_book_parser* book_parser = NULL;
     do {
         book_parser = new mobi_book_parser();
         if (!book_parser) break;
-        if (!book_parser->init(default_font)) break;
+        if (!book_parser->init()) break;
         mobipocket_t pocket;
         init_mobipocket(&pocket);
         MemoryFile memoryfile = { 0 };
@@ -98,7 +98,15 @@ mobi_book* mobi_book_parser::parser(const char* buf, int32_t len, const char* de
         memoryfile.current_pos = 0;
         std::string content;
         std::string title;
+        std::string font_name;
         if (!read_memory_mobipocket(&memoryfile, &pocket)) {
+            for (uint32_t index = 0; index < pocket.exth_header.record_count; ++index) {
+                if (pocket.exth_header.record[index].record_type == EXTH_RECORD_TYPE_LANGUAGE) {
+                    std::string language = pocket.exth_header.record[index].record_data;
+                    font_name = GetFontnameFromLanguage(language);
+                    break;
+                }
+            }
             content = GetContentFromMobi(pocket);
             title = GetStringFromMobiBinary(pocket.full_name, strlen(pocket.full_name), pocket.mobi_header.text_encoding);
             if (book_parser->book_) {
@@ -113,6 +121,10 @@ mobi_book* mobi_book_parser::parser(const char* buf, int32_t len, const char* de
         }
         free_mobipocket(&pocket);
         if (content.empty()) break;
+        if (font_name.empty()) {
+            font_name = "Times";
+        }
+        book_parser->attr_stack_.emplace_back(mobi_attr::mobi_attr_type::font_name, font_name);
         if (!book_parser->parse(content)) break;
         book = book_parser->release_book();
         if (book) book->title_ = title;
@@ -138,7 +150,7 @@ mobi_book_parser::~mobi_book_parser()
     if (book_) delete book_;
 }
 
-bool mobi_book_parser::init(const char* default_font)
+bool mobi_book_parser::init()
 {
     bool result = false;
     do {
@@ -150,13 +162,6 @@ bool mobi_book_parser::init(const char* default_font)
         attr_stack_.emplace_back(mobi_attr::mobi_attr_type::h_align, mobi_attr::h_align_type::left);
         attr_stack_.emplace_back(mobi_attr::mobi_attr_type::v_align, mobi_attr::v_align_type::baseline);
         attr_stack_.emplace_back(mobi_attr::mobi_attr_type::color, 0xff000000);
-        std::string font_name;
-        if (default_font) {
-            font_name = default_font;
-        } else {
-            font_name = "Times";
-        }
-        attr_stack_.emplace_back(mobi_attr::mobi_attr_type::font_name, font_name);
 
         result = true;
     } while(false);
@@ -168,22 +173,22 @@ bool mobi_book_parser::parse(const std::string& content)
     bool result = false;
     do {
         if (xml_parser_) break;
-        xml_parser_ = XML_ParserCreate(NULL);
+        xml_parser_ = mobi::XML_ParserCreate(NULL);
         if (!xml_parser_) break;
-        XML_SetUserData(xml_parser_, this);
-        XML_SetElementHandler(xml_parser_, mobi_book_parser::OnElementStart, mobi_book_parser::OnElementEnd);
-        XML_SetCharacterDataHandler(xml_parser_, mobi_book_parser::OnElementText);
+        mobi::XML_SetUserData(xml_parser_, this);
+        mobi::XML_SetElementHandler(xml_parser_, mobi_book_parser::OnElementStart, mobi_book_parser::OnElementEnd);
+        mobi::XML_SetCharacterDataHandler(xml_parser_, mobi_book_parser::OnElementText);
         int content_len = strlen(content.c_str());
         parser_head_ = false;
         parser_body_ = true;
         parser_finish_ = false;
-        if (XML_Parse(xml_parser_, content.c_str(), content_len, 1) == XML_STATUS_ERROR) {
+        if (mobi::XML_Parse(xml_parser_, content.c_str(), content_len, 1) == XML_STATUS_ERROR) {
             if (!parser_finish_) break;
         }
-        XML_ParserReset(xml_parser_, NULL);
-        XML_SetUserData(xml_parser_, this);
-        XML_SetElementHandler(xml_parser_, mobi_book_parser::OnElementStart, mobi_book_parser::OnElementEnd);
-        XML_SetCharacterDataHandler(xml_parser_, mobi_book_parser::OnElementText);
+        mobi::XML_ParserReset(xml_parser_, NULL);
+        mobi::XML_SetUserData(xml_parser_, this);
+        mobi::XML_SetElementHandler(xml_parser_, mobi_book_parser::OnElementStart, mobi_book_parser::OnElementEnd);
+        mobi::XML_SetCharacterDataHandler(xml_parser_, mobi_book_parser::OnElementText);
         parser_head_ = true;
         parser_body_ = false;
         parser_finish_ = false;
@@ -193,7 +198,7 @@ bool mobi_book_parser::parse(const std::string& content)
         result = true;
     } while(false);
     if (xml_parser_) {
-        XML_ParserFree(xml_parser_);
+        mobi::XML_ParserFree(xml_parser_);
         xml_parser_ = NULL;
     }
     return result;
@@ -223,14 +228,14 @@ void XMLCALL mobi_book_parser::OnElementStart(void * data, const XML_Char * tag,
 
     if (parser->in_head_) {
         if (!strcasecmp(tag, "reference")) {
-            int32_t start_pos = XML_GetCurrentByteIndex(parser->xml_parser_);
-            int32_t end_pos = start_pos + XML_CurrentNodeCount(parser->xml_parser_);
+            int32_t start_pos = mobi::XML_GetCurrentByteIndex(parser->xml_parser_);
+            int32_t end_pos = start_pos + mobi::XML_CurrentNodeCount(parser->xml_parser_);
             parser->proc_menu(tag, attr, start_pos, end_pos);
         }
     } else if (parser->in_body_) {
-        int32_t start_pos = XML_GetCurrentByteIndex(parser->xml_parser_);
-        int32_t end_pos = start_pos + XML_CurrentNodeCount(parser->xml_parser_);
-        int bIsSingle = XML_CurrentNodeIsSigle(parser->xml_parser_);
+        int32_t start_pos = mobi::XML_GetCurrentByteIndex(parser->xml_parser_);
+        int32_t end_pos = start_pos + mobi::XML_CurrentNodeCount(parser->xml_parser_);
+        int bIsSingle = mobi::XML_CurrentNodeIsSigle(parser->xml_parser_);
 
         if (!bIsSingle) {
             parser->parser_pos_stack_.push_back(start_pos);
@@ -302,7 +307,7 @@ void XMLCALL mobi_book_parser::OnElementText(void * data, const XML_Char * text,
 
     if (!parser->in_body_ && !parser->in_head_) return;
 
-    int32_t start_pos = XML_GetCurrentByteIndex(parser->xml_parser_);
+    int32_t start_pos = mobi::XML_GetCurrentByteIndex(parser->xml_parser_);
     if (start_pos < 0) return;
     if (len < 0) return;
 
