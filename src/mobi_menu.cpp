@@ -7,6 +7,11 @@ mobi_menu::mobi_menu()
 
 mobi_menu::~mobi_menu()
 {
+    if (mobi_menu_core_) {
+        delete mobi_menu_core_;
+        mobi_menu_core_ = NULL;
+    }
+    
     for (auto& item: children_)
     {
         if (item.first) delete item.second;
@@ -70,6 +75,11 @@ int32_t mobi_menu::get_address(const SkPoint& point) const
         }
     }
     return result;
+}
+
+book_menu_core* mobi_menu::get_book_menu_core() const
+{
+    return mobi_menu_core_;
 }
 
 void mobi_menu::cleanup_paint_block()

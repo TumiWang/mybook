@@ -152,6 +152,12 @@ void mobi_book::paint(const SkPoint& point, SkCanvas* canvas)
     page->paint(point, canvas);
 }
 
+book_menu_core* mobi_book::get_menu() const
+{
+    if (!menu_) return NULL;
+    return menu_->get_book_menu_core();
+}
+
 void mobi_book::cleanup_paint_engine()
 {
     std::unique_lock<decltype(mutex_engine_)> lock(mutex_engine_);

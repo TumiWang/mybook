@@ -1,6 +1,8 @@
 #ifndef _EBOOK_CORE_BOOK_CORE_H_
 #define _EBOOK_CORE_BOOK_CORE_H_
 
+#include "ebook_menu_core.h"
+
 // Skia
 #include "include/core/SkCanvas.h"
 #include "include/core/SkColorSpace.h"
@@ -29,6 +31,8 @@ public:
     virtual void NextPage() = 0;
     virtual void ProcClick(const SkPoint& point) = 0;
     virtual void paint(const SkPoint& point, SkCanvas* canvas) = 0;
+
+    virtual book_menu_core* get_menu() const = 0;
 };
 
 book_core* CreateBookCore(const char* buf, int32_t len);

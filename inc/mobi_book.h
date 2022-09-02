@@ -34,6 +34,8 @@ public:
     void ProcClick(const SkPoint& point) override;
     void paint(const SkPoint& point, SkCanvas* canvas) override;
 
+    book_menu_core* get_menu() const override;
+
 protected:
     void cleanup_paint_engine();
     void create_paint_engine();

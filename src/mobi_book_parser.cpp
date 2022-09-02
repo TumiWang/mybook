@@ -623,6 +623,12 @@ void mobi_book_parser::proc_menu(const XML_Char * tag, const XML_Char **attr, in
     }
 
     if (!book_->menu_) return;
+    mobi_menu_core* mobi_menu_core = book_->menu_->mobi_menu_core_;
+    if (!mobi_menu_core) {
+        mobi_menu_core = new mobi_menu_core();
+        if (!mobi_menu_core) return;
+        book_->menu_->mobi_menu_core_ = mobi_menu_core;
+    }
     if (strType == "text") {
         do {
             if (strTitle.empty()) break;
@@ -634,8 +640,12 @@ void mobi_book_parser::proc_menu(const XML_Char * tag, const XML_Char **attr, in
             init_element_attrs(text_node);
             text_node->address_ = new int32_t;
             *(text_node->address_) = addr;
+            mobi_menu_core->addMenuItem(strTitle, addr);
         } while(false);
     } else if (strType == "toc") {
+        if (strTitle.empty()) strTitle = "toc";
+        mobi_menu_core* submenu = mobi_menu_core->addSubMenu(strTitle);
+        if (!submenu) return;
         for (const auto& page: book_->pages_) {
             if (page->children_.empty()) continue;
             if (page->get_start_pos() >= addr && page->get_end_pos() < addr) {
@@ -644,9 +654,18 @@ void mobi_book_parser::proc_menu(const XML_Char * tag, const XML_Char **attr, in
                     if (child->get_type() == mobi_element::br) continue;
                     if (child->get_type() == mobi_element::paragraph) continue;
                     book_->menu_->children_.emplace_back(false, child);
+                    if (child->get_type() == mobi_element::text) {
+                        mobi_element_text* text_element = (mobi_element_text*)child;
+                        int32_t child_addr = -1;
+                        if (!text_element->get_address(&child_addr)) child_addr = -1;
+                        submenu->addMenuItem(text_element->get_content(), child_addr);
+                    }
                 }
                 break;
             }
+        }
+        if (submenu->count() <= 0) {
+            mobi_menu_core->removeSubMenu(submenu);
         }
     }
 }
