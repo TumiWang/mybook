@@ -4,6 +4,8 @@
 #include "paint_block.h"
 #include "paint_page.h"
 
+#include "include/core/SkImage.h"
+
 #include <vector>
 
 class mobi_page;
@@ -12,6 +14,7 @@ class paint_engine
 {
 public:
     paint_engine(SkScalar max_width, SkScalar max_height, const mobi_page* page);
+    paint_engine(SkScalar max_width, SkScalar max_height, sk_sp<SkImage> image);
     ~paint_engine();
 
 public:

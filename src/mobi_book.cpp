@@ -158,6 +158,35 @@ book_menu_core* mobi_book::get_menu() const
     return menu_->get_book_menu_core();
 }
 
+SkImage* mobi_book::get_cover() const
+{
+    return cover_image_.get();
+}
+
+SkImage* mobi_book::get_thumb() const
+{
+    return thumb_image_.get();
+}
+
+std::string mobi_book::get_attr(book_attr_type attr) const
+{
+    std::string result;
+
+    for (auto itor = attrs_.begin(); itor != attrs_.end(); ++itor) {
+        if (itor->first == attr) {
+            result = itor->second;
+            break;
+        }
+    }
+
+    return result;
+}
+
+int32_t mobi_book::get_default_pos() const
+{
+    return defalut_pos_;
+}
+
 void mobi_book::cleanup_paint_engine()
 {
     std::unique_lock<decltype(mutex_engine_)> lock(mutex_engine_);
@@ -221,6 +250,9 @@ void mobi_book::create_paint_engine()
     }
 
     create_paint_other_engine(index_engine, count_engine);
+
+    // 这样有问题 导致引擎序号错位
+    // insert_cover_page();
 }
 
 void mobi_book::create_paint_other_engine(int32_t index, int32_t count)
@@ -262,4 +294,19 @@ void mobi_book::update_current_pos()
     paint_page* page = engine->get_page(page_index);
     if (!page) return;
     current_pos_ = page->get_start_pos();
+}
+
+void mobi_book::insert_cover_page()
+{
+    do
+    {
+        if (!cover_image_) break;
+        paint_engine* cover = new paint_engine(size_.fWidth, size_.fHeight, cover_image_);
+        if (!cover) break;
+        if (cover->get_page_count() <= 0) {
+            delete cover;
+            break;
+        }
+        paint_engine_.insert(paint_engine_.begin(), cover);
+    } while (false);
 }

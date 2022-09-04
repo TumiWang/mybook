@@ -7,9 +7,13 @@
 #include "mobi_element_paragraph.h"
 #include "mobi_element_text.h"
 #include "mobi_element.h"
+#include "mobi_menu_core.h"
 #include "mobi_page.h"
 
 #include "expat.h"
+
+#include "include/core/SkData.h"
+#include "include/core/SkImageEncoder.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -82,7 +86,7 @@ static std::string GetContentFromMobi(mobipocket_t& pocket)
 }
 
 // static
-mobi_book* mobi_book_parser::parser(const char* buf, int32_t len)
+mobi_book* mobi_book_parser::parser(const char* buf, int32_t len, const char* default_fontname)
 {
     mobi_book* book = NULL;
     mobi_book_parser* book_parser = NULL;
@@ -99,30 +103,79 @@ mobi_book* mobi_book_parser::parser(const char* buf, int32_t len)
         std::string content;
         std::string title;
         std::string font_name;
+        int32_t cover_index = -1;
+        int32_t thumb_index = -1;
+        int32_t defalut_pos = -1;
         if (!read_memory_mobipocket(&memoryfile, &pocket)) {
             for (uint32_t index = 0; index < pocket.exth_header.record_count; ++index) {
                 if (pocket.exth_header.record[index].record_type == EXTH_RECORD_TYPE_LANGUAGE) {
                     std::string language = pocket.exth_header.record[index].record_data;
                     font_name = GetFontnameFromLanguage(language);
-                    break;
+                    book_parser->book_->attrs_[book_core::book_attr_type::language] = language;
+                } else if (pocket.exth_header.record[index].record_type == EXTH_RECORD_TYPE_COVEROFFSET) {
+                    cover_index = *((int32_t*)pocket.exth_header.record[index].record_data);
+                    cover_index = htonl(cover_index);
+                } else if (pocket.exth_header.record[index].record_type == EXTH_RECORD_TYPE_THUMBOFFSET) {
+                    thumb_index = *((int32_t*)pocket.exth_header.record[index].record_data);
+                    thumb_index = htonl(thumb_index);
+                } else if (pocket.exth_header.record[index].record_type == EXTH_RECORD_TYPE_STARTREADING) {
+                    defalut_pos = *((int32_t*)pocket.exth_header.record[index].record_data);
+                    defalut_pos = htonl(defalut_pos);
+                    if (defalut_pos > 0) {
+                        book_parser->book_->defalut_pos_ = defalut_pos;
+                    }
+                } else if (pocket.exth_header.record[index].record_type == EXTH_RECORD_TYPE_AUTHOR) {
+                    std::string temp = pocket.exth_header.record[index].record_data;
+                    book_parser->book_->attrs_[book_core::book_attr_type::author] = temp;
+                } else if (pocket.exth_header.record[index].record_type == EXTH_RECORD_TYPE_PUBLISHER) {
+                    std::string temp = pocket.exth_header.record[index].record_data;
+                    book_parser->book_->attrs_[book_core::book_attr_type::publisher] = temp;
+                } else if (pocket.exth_header.record[index].record_type == EXTH_RECORD_TYPE_IMPRINT) {
+                    std::string temp = pocket.exth_header.record[index].record_data;
+                    book_parser->book_->attrs_[book_core::book_attr_type::imprint] = temp;
+                } else if (pocket.exth_header.record[index].record_type == EXTH_RECORD_TYPE_DESCRIPTION) {
+                    std::string temp = pocket.exth_header.record[index].record_data;
+                    book_parser->book_->attrs_[book_core::book_attr_type::descripition] = temp;
+                } else if (pocket.exth_header.record[index].record_type == EXTH_RECORD_TYPE_ISBN) {
+                    std::string temp = pocket.exth_header.record[index].record_data;
+                    book_parser->book_->attrs_[book_core::book_attr_type::isbn] = temp;
+                } else if (pocket.exth_header.record[index].record_type == EXTH_RECORD_TYPE_PUBLISHINGDATE) {
+                    std::string temp = pocket.exth_header.record[index].record_data;
+                    book_parser->book_->attrs_[book_core::book_attr_type::publishingdate] = temp;
+                } else if (pocket.exth_header.record[index].record_type == EXTH_RECORD_TYPE_ASIN) {
+                    std::string temp = pocket.exth_header.record[index].record_data;
+                    book_parser->book_->attrs_[book_core::book_attr_type::asin] = temp;
                 }
             }
             content = GetContentFromMobi(pocket);
             title = GetStringFromMobiBinary(pocket.full_name, strlen(pocket.full_name), pocket.mobi_header.text_encoding);
-            if (book_parser->book_) {
-                for (int index = pocket.mobi_header.first_image_index; index <= pocket.mobi_header.last_content_index; ++index) {
-                    pdb_record_t* p = pocket.pdb.records.record + index;
-                    std::vector<char> buf_temp;
-                    buf_temp.resize(p->data_len);
-                    memcpy(&(buf_temp[0]), p->data, p->data_len);
-                    book_parser->book_->images_[index + 1 - pocket.mobi_header.first_image_index] = buf_temp;
+            for (int index = pocket.mobi_header.first_image_index; index <= pocket.mobi_header.last_content_index; ++index) {
+                pdb_record_t* p = pocket.pdb.records.record + index;
+                std::vector<char> buf_temp;
+                buf_temp.resize(p->data_len);
+                memcpy(&(buf_temp[0]), p->data, p->data_len);
+                book_parser->book_->images_[index + 1 - pocket.mobi_header.first_image_index] = buf_temp;
+            }
+            for (auto itor = book_parser->book_->images_.begin(); itor != book_parser->book_->images_.end(); ++itor) {
+                if (itor->first == cover_index + 1) {
+                    std::vector<char>& data = itor->second;
+                    sk_sp<SkData> image_data =  SkData::MakeWithoutCopy(&(data[0]), data.size());
+                    book_parser->book_->cover_image_ = SkImage::MakeFromEncoded(image_data);
+                } else if (itor->first == thumb_index + 1) {
+                    std::vector<char>& data = itor->second;
+                    sk_sp<SkData> image_data =  SkData::MakeWithoutCopy(&(data[0]), data.size());
+                    book_parser->book_->thumb_image_ = SkImage::MakeFromEncoded(image_data);
                 }
             }
         }
         free_mobipocket(&pocket);
         if (content.empty()) break;
         if (font_name.empty()) {
-            font_name = "Times";
+            if (default_fontname) {
+                font_name = default_fontname;
+            } else {
+                font_name = "Times";
+            }
         }
         book_parser->attr_stack_.emplace_back(mobi_attr::mobi_attr_type::font_name, font_name);
         if (!book_parser->parse(content)) break;
@@ -251,6 +304,7 @@ void XMLCALL mobi_book_parser::OnElementStart(void * data, const XML_Char * tag,
         } else if (strcasecmp(tag, "mbp:pagebreak") == 0) {
             parser->clear_element_stack();
             parser->create_last_page();
+            parser->add_text("", 0, start_pos, start_pos + 13);
         } else if (strcasecmp(tag, "img") == 0) {
             parser->add_paragraph_if_need(start_pos);
             parser->add_image(tag, attr, start_pos, end_pos);
@@ -623,11 +677,11 @@ void mobi_book_parser::proc_menu(const XML_Char * tag, const XML_Char **attr, in
     }
 
     if (!book_->menu_) return;
-    mobi_menu_core* mobi_menu_core = book_->menu_->mobi_menu_core_;
-    if (!mobi_menu_core) {
-        mobi_menu_core = new mobi_menu_core();
-        if (!mobi_menu_core) return;
-        book_->menu_->mobi_menu_core_ = mobi_menu_core;
+    mobi_menu_core* menu_core = book_->menu_->mobi_menu_core_;
+    if (!menu_core) {
+        menu_core = new mobi_menu_core();
+        if (!menu_core) return;
+        book_->menu_->mobi_menu_core_ = menu_core;
     }
     if (strType == "text") {
         do {
@@ -640,17 +694,17 @@ void mobi_book_parser::proc_menu(const XML_Char * tag, const XML_Char **attr, in
             init_element_attrs(text_node);
             text_node->address_ = new int32_t;
             *(text_node->address_) = addr;
-            mobi_menu_core->addMenuItem(strTitle, addr);
+            menu_core->addMenuItem(strTitle, addr);
         } while(false);
     } else if (strType == "toc") {
         if (strTitle.empty()) strTitle = "toc";
-        mobi_menu_core* submenu = mobi_menu_core->addSubMenu(strTitle);
+        mobi_menu_core* submenu = menu_core->addSubMenu(strTitle);
         if (!submenu) return;
         for (const auto& page: book_->pages_) {
             if (page->children_.empty()) continue;
-            if (page->get_start_pos() >= addr && page->get_end_pos() < addr) {
+            if (page->get_start_pos() <= addr && page->get_end_pos() >= addr) {
                 for(auto& child: page->children_) {
-                    if (addr < child->get_start_pos()) continue;
+                    if (addr > child->get_start_pos()) continue;
                     if (child->get_type() == mobi_element::br) continue;
                     if (child->get_type() == mobi_element::paragraph) continue;
                     book_->menu_->children_.emplace_back(false, child);
@@ -665,7 +719,7 @@ void mobi_book_parser::proc_menu(const XML_Char * tag, const XML_Char **attr, in
             }
         }
         if (submenu->count() <= 0) {
-            mobi_menu_core->removeSubMenu(submenu);
+            menu_core->removeSubMenu(submenu);
         }
     }
 }

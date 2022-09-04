@@ -91,6 +91,7 @@ public:
 
 public:
     static paint_image_block* create(const mobi_element_image* image, int32_t max_width, int32_t max_height);
+    static paint_image_block* create_cover(sk_sp<SkImage> image, int32_t max_width, int32_t max_height);
 
 public:
     bool is_vilad() const override;

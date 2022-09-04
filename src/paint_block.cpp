@@ -168,7 +168,6 @@ void paint_blob_block::paint(const SkPoint& point, SkCanvas* canvas) const
 // static
 paint_image_block* paint_image_block::create(const mobi_element_image* image, int32_t max_width, int32_t max_height)
 {
-    static int32_t iii = 500;
     paint_image_block* block = new paint_image_block();
     block->v_align_ = image->get_v_align();
     block->h_align_ = image->get_h_align();
@@ -180,6 +179,28 @@ paint_image_block* paint_image_block::create(const mobi_element_image* image, in
 
     int32_t w = image->get_image_width();
     int32_t h = image->get_image_height();
+    if (w > max_width) w = max_width;
+    if (h > max_height) h = max_height;
+    block->size_ = SkSize::Make(SkIntToScalar(w), SkIntToScalar(h));
+    if (!block->is_vilad()) {
+        delete block;
+        block = NULL;
+    }
+    return block;
+}
+
+// static
+paint_image_block* paint_image_block::create_cover(sk_sp<SkImage> image, int32_t max_width, int32_t max_height)
+{
+    paint_image_block* block = new paint_image_block();
+    block->v_align_ = mobi_attr::v_align_type::baseline;
+    block->h_align_ = mobi_attr::h_align_type::center;
+    block->image_ = image;
+    block->start_pos_ = 0;
+    block->end_pos_ = 0;
+
+    int32_t w = image->width();
+    int32_t h = image->height();
     if (w > max_width) w = max_width;
     if (h > max_height) h = max_height;
     block->size_ = SkSize::Make(SkIntToScalar(w), SkIntToScalar(h));

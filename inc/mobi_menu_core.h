@@ -1,5 +1,5 @@
-#ifndef _EBOOK_CORE_MOBI_MENU_H_
-#define _EBOOK_CORE_MOBI_MENU_H_
+#ifndef _EBOOK_CORE_MOBI_MENU_CORE_H_
+#define _EBOOK_CORE_MOBI_MENU_CORE_H_
 
 #include <stdint.h>
 #include <vector>
@@ -21,7 +21,7 @@ public:
     std::string title_;
     int32_t addr_ = -1;
     mobi_menu_core* submenu_ = NULL;
-}
+};
 
 class mobi_menu_core: public book_menu_core
 {

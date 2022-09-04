@@ -36,12 +36,21 @@ public:
 
     book_menu_core* get_menu() const override;
 
+    SkImage* get_cover() const override;
+    SkImage* get_thumb() const override;
+
+    std::string get_attr(book_attr_type attr) const override;
+
+    int32_t get_default_pos() const override;
+
 protected:
     void cleanup_paint_engine();
     void create_paint_engine();
     void create_paint_other_engine(int32_t index, int32_t count);
 
     void update_current_pos();
+
+    void insert_cover_page();
 
 protected:
     std::string title_;
@@ -59,6 +68,13 @@ protected:
     int32_t page_index_ = 0;
 
     std::map<int32_t, std::vector<char>> images_;
+
+    sk_sp<SkImage> cover_image_;
+    sk_sp<SkImage> thumb_image_;
+
+    std::map<book_attr_type, std::string> attrs_;
+
+    int32_t defalut_pos_ = -1;
 
 private:
     friend class mobi_book_parser;

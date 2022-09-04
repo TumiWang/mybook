@@ -97,9 +97,9 @@ void mobi_menu_core::removeSubMenu(mobi_menu_core* submenu)
 {
     if (submenu == NULL) return;
     for (auto itor = items_.begin(); itor != items_.end(); ++itor) {
-        if (itor->submenu_ == submenu) {
+        if ((*itor)->submenu_ == submenu) {
             delete *itor;
-            items_.erease(itor);
+            items_.erase(itor);
             break;
         }
     }

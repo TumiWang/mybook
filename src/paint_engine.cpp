@@ -16,6 +16,23 @@ paint_engine::paint_engine(SkScalar max_width, SkScalar max_height, const mobi_p
     init(page);
 }
 
+paint_engine::paint_engine(SkScalar max_width, SkScalar max_height, sk_sp<SkImage> image)
+    : max_width_(max_width),
+      max_height_(max_height)
+{
+    do
+    {
+        paint_image_block* block = paint_image_block::create_cover(image, max_width_, max_height_);
+        if (!block) break;
+        blocks_.push_back(block);
+        paint_line* line = new paint_line(max_width_);
+        line->add(block);
+        paint_page* page = new paint_page(max_width_, max_height_);
+        page->add(line, 0);
+        pages_.push_back(page);
+    } while (false);
+}
+
 paint_engine::~paint_engine()
 {
     clear();

@@ -15,7 +15,7 @@ class mobi_page;
 class mobi_book_parser
 {
 public:
-    static mobi_book* parser(const char* buf, int32_t len);
+    static mobi_book* parser(const char* buf, int32_t len, const char* default_fontname);
 
 protected:
     mobi_book_parser();
